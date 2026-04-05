@@ -3,7 +3,6 @@
 
 """factory_boy extensions for use with the Django framework."""
 
-
 import functools
 import io
 import logging
@@ -17,10 +16,10 @@ from django.db import IntegrityError
 
 from . import base, declarations, errors
 
-logger = logging.getLogger('factory.generate')
+logger = logging.getLogger("factory.generate")
 
 
-DEFAULT_DB_ALIAS = 'default'  # Same as django.db.DEFAULT_DB_ALIAS
+DEFAULT_DB_ALIAS = "default"  # Same as django.db.DEFAULT_DB_ALIAS
 T = TypeVar("T")
 
 _LAZY_LOADS: Dict[str, object] = {}
@@ -106,7 +105,7 @@ class Password(declarations.Transformer):
 class FileField(declarations.BaseDeclaration):
     """Helper to fill in django.db.models.FileField from a Factory."""
 
-    DEFAULT_FILENAME = 'example.dat'
+    DEFAULT_FILENAME = "example.dat"
 
     def _make_data(self, params):
         """Create data for the field."""
@@ -121,7 +120,7 @@ class FileField(declarations.BaseDeclaration):
 
 
 class ImageField(FileField):
-    DEFAULT_FILENAME = 'example.jpg'
+    DEFAULT_FILENAME = "example.jpg"
 
     def _make_data(self, params):
         # ImageField (both django's and factory_boy's) require PIL.
@@ -155,8 +154,7 @@ class mute_signals:
 
     def __enter__(self):
         for signal in self.signals:
-            logger.debug('mute_signals: Disabling signal handlers %r',
-                         signal.receivers)
+            logger.debug("mute_signals: Disabling signal handlers %r", signal.receivers)
 
             # Note that we're using implementation details of
             # django.signals, since arguments to signal.connect()
@@ -166,8 +164,7 @@ class mute_signals:
 
     def __exit__(self, exc_type, exc_value, traceback):
         for signal, receivers in self.paused.items():
-            logger.debug('mute_signals: Restoring signal handlers %r',
-                         receivers)
+            logger.debug("mute_signals: Restoring signal handlers %r", receivers)
 
             signal.receivers = receivers + signal.receivers
             with signal.lock:
@@ -191,13 +188,18 @@ class mute_signals:
             return callable_obj
 
         else:
+
             @functools.wraps(callable_obj)
             def wrapper(*args, **kwargs):
                 # A mute_signals() object is not reentrant; use a copy every time.
                 pass
+
             return wrapper
 
     def wrap_method(self, method):
         @classmethod
         @functools.wraps(method)
-        pass
+        def wrapped_method(*args, **kwargs):
+            pass
+
+        return wrapped_method
