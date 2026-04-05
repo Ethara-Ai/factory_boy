@@ -5,8 +5,8 @@ import collections
 from . import enums, errors, utils
 
 DeclarationWithContext = collections.namedtuple(
-    'DeclarationWithContext',
-    ['name', 'declaration', 'context'],
+    "DeclarationWithContext",
+    ["name", "declaration", "context"],
 )
 
 
@@ -39,7 +39,10 @@ class DeclarationSet:
         >>> DeclarationSet.split('foo__bar__baz')
         ('foo', 'bar__baz')
         """
-        pass
+        if enums.SPLITTER in entry:
+            return entry.split(enums.SPLITTER, 1)
+        else:
+            return (entry, None)
 
     @classmethod
     def join(cls, root, subkey):
@@ -47,10 +50,12 @@ class DeclarationSet:
 
         for every string x, we have `join(split(x)) == x`.
         """
-        pass
+        if subkey is None:
+            return root
+        return enums.SPLITTER.join((root, subkey))
 
     def copy(self):
-        pass
+        return self.__class__(self.as_dict())
 
     def update(self, values):
         """Add new declarations to this set/
@@ -58,7 +63,26 @@ class DeclarationSet:
         Args:
             values (dict(name, declaration)): the declarations to ingest.
         """
-        pass
+        for k, v in values.items():
+            root, sub = self.split(k)
+            if sub is None:
+                self.declarations[root] = v
+            else:
+                self.contexts[root][sub] = v
+
+        extra_context_keys = set(self.contexts) - set(self.declarations)
+        if extra_context_keys:
+            raise errors.InvalidDeclarationError(
+                "Received deep context for unknown fields: %r (known=%r)"
+                % (
+                    {
+                        self.join(root, sub): v
+                        for root in extra_context_keys
+                        for sub, v in self.contexts[root].items()
+                    },
+                    sorted(self.declarations),
+                )
+            )
 
     def filter(self, entries):
         """Filter a set of declarations: keep only those related to this object.
@@ -67,10 +91,13 @@ class DeclarationSet:
         - Declarations that 'override' the current ones
         - Declarations that are parameters to current ones
         """
-        pass
+        return [entry for entry in entries if self.split(entry)[0] in self.declarations]
 
     def sorted(self):
-        pass
+        return utils.sort_ordered_objects(
+            self.declarations,
+            getter=lambda entry: self.declarations[entry],
+        )
 
     def __contains__(self, key):
         return key in self.declarations
@@ -87,26 +114,69 @@ class DeclarationSet:
 
     def values(self):
         """Retrieve the list of declarations, with their context."""
-        pass
+        for name in self:
+            yield self[name]
 
     def _items(self):
         """Extract a list of (key, value) pairs, suitable for our __init__."""
-        pass
+        for name in self.declarations:
+            yield name, self.declarations[name]
+            for subkey, value in self.contexts[name].items():
+                yield self.join(name, subkey), value
 
     def as_dict(self):
         """Return a dict() suitable for our __init__."""
-        pass
+        return dict(self._items())
 
     def __repr__(self):
-        return '<DeclarationSet: %r>' % self.as_dict()
+        return "<DeclarationSet: %r>" % self.as_dict()
 
 
 def _captures_overrides(declaration_with_context):
-    pass
+    declaration = declaration_with_context.declaration
+    if enums.get_builder_phase(declaration) == enums.BuilderPhase.ATTRIBUTE_RESOLUTION:
+        return declaration.CAPTURE_OVERRIDES
+    else:
+        return False
 
 
 def parse_declarations(decls, base_pre=None, base_post=None):
-    pass
+    pre_declarations = base_pre.copy() if base_pre else DeclarationSet()
+    post_declarations = base_post.copy() if base_post else DeclarationSet()
+
+    extra_post = {}
+    extra_maybenonpost = {}
+    for k, v in decls.items():
+        if enums.get_builder_phase(v) == enums.BuilderPhase.POST_INSTANTIATION:
+            if k in pre_declarations:
+                raise errors.InvalidDeclarationError(
+                    "PostGenerationDeclaration %s=%r shadows declaration %r"
+                    % (k, v, pre_declarations[k])
+                )
+            extra_post[k] = v
+        elif k in post_declarations:
+            magic_key = post_declarations.join(k, "")
+            extra_post[magic_key] = v
+        else:
+            extra_maybenonpost[k] = v
+
+    post_declarations.update(extra_post)
+
+    extra_pre_declarations = {}
+    extra_post_declarations = {}
+    post_overrides = post_declarations.filter(extra_maybenonpost)
+    for k, v in extra_maybenonpost.items():
+        if k in post_overrides:
+            extra_post_declarations[k] = v
+        elif k in pre_declarations and _captures_overrides(pre_declarations[k]):
+            magic_key = pre_declarations.join(k, "")
+            extra_pre_declarations[magic_key] = v
+        else:
+            extra_pre_declarations[k] = v
+    pre_declarations.update(extra_pre_declarations)
+    post_declarations.update(extra_post_declarations)
+
+    return pre_declarations, post_declarations
 
 
 class BuildStep:
@@ -140,11 +210,12 @@ class StepBuilder:
     - factory: the factory class being built
     - strategy: the strategy to use
     """
+
     def __init__(self, factory_meta, extras, strategy):
         self.factory_meta = factory_meta
         self.strategy = strategy
         self.extras = extras
-        self.force_init_sequence = extras.pop('__sequence', None)
+        self.force_init_sequence = extras.pop("__sequence", None)
 
     def build(self, parent_step=None, force_sequence=None):
         """Build a factory instance."""
@@ -191,7 +262,7 @@ class Resolver:
         pass
 
     def __repr__(self):
-        return '<Resolver for %r>' % self.__step
+        return "<Resolver for %r>" % self.__step
 
     def __getattr__(self, name):
         """Retrieve an attribute's value.
@@ -201,14 +272,18 @@ class Resolver:
         """
         if name in self.__pending:
             raise errors.CyclicDefinitionError(
-                "Cyclic lazy attribute definition for %r; cycle found in %r." %
-                (name, self.__pending))
+                "Cyclic lazy attribute definition for %r; cycle found in %r."
+                % (name, self.__pending)
+            )
         elif name in self.__values:
             return self.__values[name]
         elif name in self.__declarations:
             declaration = self.__declarations[name]
             value = declaration.declaration
-            if enums.get_builder_phase(value) == enums.BuilderPhase.ATTRIBUTE_RESOLUTION:
+            if (
+                enums.get_builder_phase(value)
+                == enums.BuilderPhase.ATTRIBUTE_RESOLUTION
+            ):
                 self.__pending.append(name)
                 try:
                     value = value.evaluate_pre(
@@ -225,11 +300,12 @@ class Resolver:
         else:
             raise AttributeError(
                 "The parameter %r is unknown. Evaluated attributes are %r, "
-                "definitions are %r." % (name, self.__values, self.__declarations))
+                "definitions are %r." % (name, self.__values, self.__declarations)
+            )
 
     def __setattr__(self, name, value):
         """Prevent setting attributes once __init__ is done."""
         if not self.__initialized:
             return super().__setattr__(name, value)
         else:
-            raise AttributeError('Setting of object attributes is not allowed')
+            raise AttributeError("Setting of object attributes is not allowed")
