@@ -16,3 +16,6 @@ dist/
 htmlcov/
 MANIFEST
 tags
+
+.aider*
+logs/
