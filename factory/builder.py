@@ -39,10 +39,7 @@ class DeclarationSet:
         >>> DeclarationSet.split('foo__bar__baz')
         ('foo', 'bar__baz')
         """
-        if enums.SPLITTER in entry:
-            return entry.split(enums.SPLITTER, 1)
-        else:
-            return (entry, None)
+        pass
 
     @classmethod
     def join(cls, root, subkey):
@@ -50,12 +47,10 @@ class DeclarationSet:
 
         for every string x, we have `join(split(x)) == x`.
         """
-        if subkey is None:
-            return root
-        return enums.SPLITTER.join((root, subkey))
+        pass
 
     def copy(self):
-        return self.__class__(self.as_dict())
+        pass
 
     def update(self, values):
         """Add new declarations to this set/
@@ -63,25 +58,7 @@ class DeclarationSet:
         Args:
             values (dict(name, declaration)): the declarations to ingest.
         """
-        for k, v in values.items():
-            root, sub = self.split(k)
-            if sub is None:
-                self.declarations[root] = v
-            else:
-                self.contexts[root][sub] = v
-
-        extra_context_keys = set(self.contexts) - set(self.declarations)
-        if extra_context_keys:
-            raise errors.InvalidDeclarationError(
-                "Received deep context for unknown fields: %r (known=%r)" % (
-                    {
-                        self.join(root, sub): v
-                        for root in extra_context_keys
-                        for sub, v in self.contexts[root].items()
-                    },
-                    sorted(self.declarations),
-                )
-            )
+        pass
 
     def filter(self, entries):
         """Filter a set of declarations: keep only those related to this object.
@@ -90,16 +67,10 @@ class DeclarationSet:
         - Declarations that 'override' the current ones
         - Declarations that are parameters to current ones
         """
-        return [
-            entry for entry in entries
-            if self.split(entry)[0] in self.declarations
-        ]
+        pass
 
     def sorted(self):
-        return utils.sort_ordered_objects(
-            self.declarations,
-            getter=lambda entry: self.declarations[entry],
-        )
+        pass
 
     def __contains__(self, key):
         return key in self.declarations
@@ -116,80 +87,26 @@ class DeclarationSet:
 
     def values(self):
         """Retrieve the list of declarations, with their context."""
-        for name in self:
-            yield self[name]
+        pass
 
     def _items(self):
         """Extract a list of (key, value) pairs, suitable for our __init__."""
-        for name in self.declarations:
-            yield name, self.declarations[name]
-            for subkey, value in self.contexts[name].items():
-                yield self.join(name, subkey), value
+        pass
 
     def as_dict(self):
         """Return a dict() suitable for our __init__."""
-        return dict(self._items())
+        pass
 
     def __repr__(self):
         return '<DeclarationSet: %r>' % self.as_dict()
 
 
 def _captures_overrides(declaration_with_context):
-    declaration = declaration_with_context.declaration
-    if enums.get_builder_phase(declaration) == enums.BuilderPhase.ATTRIBUTE_RESOLUTION:
-        return declaration.CAPTURE_OVERRIDES
-    else:
-        return False
+    pass
 
 
 def parse_declarations(decls, base_pre=None, base_post=None):
-    pre_declarations = base_pre.copy() if base_pre else DeclarationSet()
-    post_declarations = base_post.copy() if base_post else DeclarationSet()
-
-    # Inject extra declarations, splitting between known-to-be-post and undetermined
-    extra_post = {}
-    extra_maybenonpost = {}
-    for k, v in decls.items():
-        if enums.get_builder_phase(v) == enums.BuilderPhase.POST_INSTANTIATION:
-            if k in pre_declarations:
-                # Conflict: PostGenerationDeclaration with the same
-                # name as a BaseDeclaration
-                raise errors.InvalidDeclarationError(
-                    "PostGenerationDeclaration %s=%r shadows declaration %r"
-                    % (k, v, pre_declarations[k])
-                )
-            extra_post[k] = v
-        elif k in post_declarations:
-            # Passing in a scalar value to a PostGenerationDeclaration
-            # Set it as `key__`
-            magic_key = post_declarations.join(k, '')
-            extra_post[magic_key] = v
-        else:
-            extra_maybenonpost[k] = v
-
-    # Start with adding new post-declarations
-    post_declarations.update(extra_post)
-
-    # Fill in extra post-declaration context
-    extra_pre_declarations = {}
-    extra_post_declarations = {}
-    post_overrides = post_declarations.filter(extra_maybenonpost)
-    for k, v in extra_maybenonpost.items():
-        if k in post_overrides:
-            extra_post_declarations[k] = v
-        elif k in pre_declarations and _captures_overrides(pre_declarations[k]):
-            # Send the overriding value to the existing declaration.
-            # By symmetry with the behaviour of PostGenerationDeclaration,
-            # we send it as `key__` -- i.e under the '' key.
-            magic_key = pre_declarations.join(k, '')
-            extra_pre_declarations[magic_key] = v
-        else:
-            # Anything else is pre_declarations
-            extra_pre_declarations[k] = v
-    pre_declarations.update(extra_pre_declarations)
-    post_declarations.update(extra_post_declarations)
-
-    return pre_declarations, post_declarations
+    pass
 
 
 class BuildStep:
@@ -201,31 +118,14 @@ class BuildStep:
         self.stub = None
 
     def resolve(self, declarations):
-        self.stub = Resolver(
-            declarations=declarations,
-            step=self,
-            sequence=self.sequence,
-        )
-
-        for field_name in declarations:
-            self.attributes[field_name] = getattr(self.stub, field_name)
+        pass
 
     @property
     def chain(self):
-        if self.parent_step:
-            parent_chain = self.parent_step.chain
-        else:
-            parent_chain = ()
-        return (self.stub,) + parent_chain
+        pass
 
     def recurse(self, factory, declarations, force_sequence=None):
-        from . import base
-        if not issubclass(factory, base.BaseFactory):
-            raise errors.AssociatedClassError(
-                "%r: Attempting to recursing into a non-factory object %r"
-                % (self, factory))
-        builder = self.builder.recurse(factory._meta, declarations)
-        return builder.build(parent_step=self, force_sequence=force_sequence)
+        pass
 
     def __repr__(self):
         return f"<BuildStep for {self.builder!r}>"
@@ -248,53 +148,11 @@ class StepBuilder:
 
     def build(self, parent_step=None, force_sequence=None):
         """Build a factory instance."""
-        # TODO: Handle "batch build" natively
-        pre, post = parse_declarations(
-            self.extras,
-            base_pre=self.factory_meta.pre_declarations,
-            base_post=self.factory_meta.post_declarations,
-        )
-
-        if force_sequence is not None:
-            sequence = force_sequence
-        elif self.force_init_sequence is not None:
-            sequence = self.force_init_sequence
-        else:
-            sequence = self.factory_meta.next_sequence()
-
-        step = BuildStep(
-            builder=self,
-            sequence=sequence,
-            parent_step=parent_step,
-        )
-        step.resolve(pre)
-
-        args, kwargs = self.factory_meta.prepare_arguments(step.attributes)
-
-        instance = self.factory_meta.instantiate(
-            step=step,
-            args=args,
-            kwargs=kwargs,
-        )
-
-        postgen_results = {}
-        for declaration_name in post.sorted():
-            declaration = post[declaration_name]
-            postgen_results[declaration_name] = declaration.declaration.evaluate_post(
-                instance=instance,
-                step=step,
-                overrides=declaration.context,
-            )
-        self.factory_meta.use_postgeneration_results(
-            instance=instance,
-            step=step,
-            results=postgen_results,
-        )
-        return instance
+        pass
 
     def recurse(self, factory_meta, extras):
         """Recurse into a sub-factory call."""
-        return self.__class__(factory_meta, extras, strategy=self.strategy)
+        pass
 
     def __repr__(self):
         return f"<StepBuilder({self.factory_meta!r}, strategy={self.strategy!r})>"
@@ -330,7 +188,7 @@ class Resolver:
 
     @property
     def factory_parent(self):
-        return self.__step.parent_step.stub if self.__step.parent_step else None
+        pass
 
     def __repr__(self):
         return '<Resolver for %r>' % self.__step

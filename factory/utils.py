@@ -12,8 +12,7 @@ def import_object(module_name, attribute_name):
         >>> import_object('datetime', 'datetime')
         <type 'datetime.datetime'>
     """
-    module = importlib.import_module(module_name)
-    return getattr(module, attribute_name)
+    pass
 
 
 class log_pprint:
@@ -64,8 +63,7 @@ class ResetableIterator:
                     yield value
 
     def reset(self):
-        self.next_elements.clear()
-        self.next_elements.extend(self.past_elements)
+        pass
 
 
 class OrderedBase:
@@ -82,13 +80,7 @@ class OrderedBase:
             self.touch_creation_counter()
 
     def touch_creation_counter(self):
-        bases = type(self).__mro__
-        root = bases[bases.index(OrderedBase) - 1]
-        if not hasattr(root, self.CREATION_COUNTER_FIELD):
-            setattr(root, self.CREATION_COUNTER_FIELD, 0)
-        next_counter = getattr(root, self.CREATION_COUNTER_FIELD)
-        setattr(self, self.CREATION_COUNTER_FIELD, next_counter)
-        setattr(root, self.CREATION_COUNTER_FIELD, next_counter + 1)
+        pass
 
 
 def sort_ordered_objects(items, getter=lambda x: x):
@@ -102,4 +94,4 @@ def sort_ordered_objects(items, getter=lambda x: x):
         >>> sort_ordered_objects([x, y, z])
         >>> sort_ordered_objects(v.items(), getter=lambda e: e[1])
     """
-    return sorted(items, key=lambda x: getattr(getter(x), OrderedBase.CREATION_COUNTER_FIELD, -1))
+    pass

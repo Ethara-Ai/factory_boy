@@ -34,19 +34,7 @@ class BaseDeclaration(utils.OrderedBase):
         self._defaults = defaults or {}
 
     def unroll_context(self, instance, step, context):
-        full_context = dict()
-        full_context.update(self._defaults)
-        full_context.update(context)
-
-        if not self.UNROLL_CONTEXT_BEFORE_EVALUATION:
-            return full_context
-        if not any(enums.get_builder_phase(v) for v in full_context.values()):
-            # Optimization for simple contexts - don't do anything.
-            return full_context
-
-        import factory.base
-        subfactory = factory.base.DictFactory
-        return step.recurse(subfactory, full_context, force_sequence=step.sequence)
+        pass
 
     def _unwrap_evaluate_pre(self, wrapped, *, instance, step, overrides):
         """Evaluate a wrapped pre-declaration.
@@ -54,17 +42,10 @@ class BaseDeclaration(utils.OrderedBase):
         This is especially useful for declarations wrapping another one,
         e.g. Maybe or Transformer.
         """
-        if isinstance(wrapped, BaseDeclaration):
-            return wrapped.evaluate_pre(
-                instance=instance,
-                step=step,
-                overrides=overrides,
-            )
-        return wrapped
+        pass
 
     def evaluate_pre(self, instance, step, overrides):
-        context = self.unroll_context(instance, step, overrides)
-        return self.evaluate(instance, step, context)
+        pass
 
     def evaluate(self, instance, step, extra):
         """Evaluate this declaration.
@@ -98,8 +79,7 @@ class LazyFunction(BaseDeclaration):
         self.function = function
 
     def evaluate(self, instance, step, extra):
-        logger.debug("LazyFunction: Evaluating %r on %r", self.function, step)
-        return self.function()
+        pass
 
 
 class LazyAttribute(BaseDeclaration):
@@ -115,8 +95,7 @@ class LazyAttribute(BaseDeclaration):
         self.function = function
 
     def evaluate(self, instance, step, extra):
-        logger.debug("LazyAttribute: Evaluating %r on %r", self.function, instance)
-        return self.function(instance)
+        pass
 
 
 class Transformer(BaseDeclaration):
@@ -143,23 +122,7 @@ class Transformer(BaseDeclaration):
 
     def evaluate_pre(self, instance, step, overrides):
         # The call-time value, if present, is set under the "" key.
-        value_or_declaration = overrides.pop("", self.default)
-
-        if isinstance(value_or_declaration, self.Force):
-            bypass_transform = True
-            value_or_declaration = value_or_declaration.forced_value
-        else:
-            bypass_transform = False
-
-        value = self._unwrap_evaluate_pre(
-            value_or_declaration,
-            instance=instance,
-            step=step,
-            overrides=overrides,
-        )
-        if bypass_transform:
-            return value
-        return self.transform(value)
+        pass
 
 
 class _UNSPECIFIED:
@@ -182,17 +145,7 @@ def deepgetattr(obj, name, default=_UNSPECIFIED):
     Raises:
         AttributeError: if obj has no 'name' attribute.
     """
-    try:
-        if '.' in name:
-            attr, subname = name.split('.', 1)
-            return deepgetattr(getattr(obj, attr), subname, default)
-        else:
-            return getattr(obj, name)
-    except AttributeError:
-        if default is _UNSPECIFIED:
-            raise
-        else:
-            return default
+    pass
 
 
 class SelfAttribute(BaseDeclaration):
@@ -218,14 +171,7 @@ class SelfAttribute(BaseDeclaration):
         self.default = default
 
     def evaluate(self, instance, step, extra):
-        if self.depth > 1:
-            # Fetching from a parent
-            target = step.chain[self.depth - 1]
-        else:
-            target = instance
-
-        logger.debug("SelfAttribute: Picking attribute %r on %r", self.attribute_name, target)
-        return deepgetattr(target, self.attribute_name, self.default)
+        pass
 
     def __repr__(self):
         return '<%s(%r, default=%r)>' % (
@@ -258,19 +204,11 @@ class Iterator(BaseDeclaration):
     def evaluate(self, instance, step, extra):
         # Begin unrolling as late as possible.
         # This helps with ResetableIterator(MyModel.objects.all())
-        if self.iterator is None:
-            self.iterator = self.iterator_builder()
-
-        logger.debug("Iterator: Fetching next value from %r", self.iterator)
-        value = next(iter(self.iterator))
-        if self.getter is None:
-            return value
-        return self.getter(value)
+        pass
 
     def reset(self):
         """Reset the internal iterator."""
-        if self.iterator is not None:
-            self.iterator.reset()
+        pass
 
 
 class Sequence(BaseDeclaration):
@@ -287,8 +225,7 @@ class Sequence(BaseDeclaration):
         self.function = function
 
     def evaluate(self, instance, step, extra):
-        logger.debug("Sequence: Computing next value of %r for seq=%s", self.function, step.sequence)
-        return self.function(int(step.sequence))
+        pass
 
 
 class LazyAttributeSequence(Sequence):
@@ -301,10 +238,7 @@ class LazyAttributeSequence(Sequence):
             of counter for the 'function' attribute.
     """
     def evaluate(self, instance, step, extra):
-        logger.debug(
-            "LazyAttributeSequence: Computing next value of %r for seq=%s, obj=%r",
-            self.function, step.sequence, instance)
-        return self.function(instance, int(step.sequence))
+        pass
 
 
 class ContainerAttribute(BaseDeclaration):
@@ -331,14 +265,7 @@ class ContainerAttribute(BaseDeclaration):
                 being evaluated in a chain, each item being a future field of
                 next one.
         """
-        # Strip the current instance from the chain
-        chain = step.chain[1:]
-        if self.strict and not chain:
-            raise TypeError(
-                "A ContainerAttribute in 'strict' mode can only be used "
-                "within a SubFactory.")
-
-        return self.function(instance, chain)
+        pass
 
 
 class ParameteredAttribute(BaseDeclaration):
@@ -363,7 +290,7 @@ class ParameteredAttribute(BaseDeclaration):
             extra (dict): additional, call-time added kwargs
                 for the step.
         """
-        return self.generate(step, extra)
+        pass
 
     def generate(self, step, params):
         """Actually generate the related attribute.
@@ -402,12 +329,7 @@ class _FactoryWrapper:
             self.module, self.name = factory_or_path.rsplit('.', 1)
 
     def get(self):
-        if self.factory is None:
-            self.factory = utils.import_object(
-                self.module,
-                self.name,
-            )
-        return self.factory
+        pass
 
     def __repr__(self):
         if self.factory is None:
@@ -436,7 +358,7 @@ class SubFactory(BaseDeclaration):
 
     def get_factory(self):
         """Retrieve the wrapped factory.Factory subclass."""
-        return self.factory_wrapper.get()
+        pass
 
     def evaluate(self, instance, step, extra):
         """Evaluate the current definition and fill its attributes.
@@ -446,15 +368,7 @@ class SubFactory(BaseDeclaration):
             params (dict): additional, call-time added kwargs
                 for the step.
         """
-        subfactory = self.get_factory()
-        logger.debug(
-            "SubFactory: Instantiating %s.%s(%s), create=%r",
-            subfactory.__module__, subfactory.__name__,
-            utils.log_pprint(kwargs=extra),
-            step,
-        )
-        force_sequence = step.sequence if self.FORCE_SEQUENCE else None
-        return step.recurse(subfactory, extra, force_sequence=force_sequence)
+        pass
 
 
 class Dict(SubFactory):
@@ -513,39 +427,10 @@ class Maybe(BaseDeclaration):
 
     def evaluate_post(self, instance, step, overrides):
         """Handle post-generation declarations"""
-        decider_phase = enums.get_builder_phase(self.decider)
-        if decider_phase == enums.BuilderPhase.ATTRIBUTE_RESOLUTION:
-            # Note: we work on the *builder stub*, not on the actual instance.
-            # This gives us access to all Params-level definitions.
-            choice = self.decider.evaluate_pre(
-                instance=step.stub, step=step, overrides=overrides)
-        else:
-            assert decider_phase == enums.BuilderPhase.POST_INSTANTIATION
-            choice = self.decider.evaluate_post(
-                instance=instance, step=step, overrides={})
-
-        target = self.yes if choice else self.no
-        if enums.get_builder_phase(target) == enums.BuilderPhase.POST_INSTANTIATION:
-            return target.evaluate_post(
-                instance=instance,
-                step=step,
-                overrides=overrides,
-            )
-        else:
-            # Flat value (can't be ATTRIBUTE_RESOLUTION, checked in __init__)
-            return target
+        pass
 
     def evaluate_pre(self, instance, step, overrides):
-        choice = self.decider.evaluate_pre(instance=instance, step=step, overrides={})
-        target = self.yes if choice else self.no
-        # The value can't be POST_INSTANTIATION, checked in __init__;
-        # evaluate it as `evaluate_pre`
-        return self._unwrap_evaluate_pre(
-            target,
-            instance=instance,
-            step=step,
-            overrides=overrides,
-        )
+        pass
 
     def __repr__(self):
         return f'Maybe({self.decider!r}, yes={self.yes!r}, no={self.no!r})'
@@ -573,7 +458,7 @@ class Parameter(utils.OrderedBase):
 
     def get_revdeps(self, parameters):
         """Retrieve the list of other parameters modified by this one."""
-        return []
+        pass
 
 
 class SimpleParameter(Parameter):
@@ -582,16 +467,11 @@ class SimpleParameter(Parameter):
         self.value = value
 
     def as_declarations(self, field_name, declarations):
-        return {
-            field_name: self.value,
-        }
+        pass
 
     @classmethod
     def wrap(cls, value):
-        if not isinstance(value, Parameter):
-            return cls(value)
-        value.touch_creation_counter()
-        return value
+        pass
 
 
 class Trait(Parameter):
@@ -601,24 +481,11 @@ class Trait(Parameter):
         self.overrides = overrides
 
     def as_declarations(self, field_name, declarations):
-        overrides = {}
-        for maybe_field, new_value in self.overrides.items():
-            overrides[maybe_field] = Maybe(
-                decider=SelfAttribute(
-                    '%s.%s' % (
-                        '.' * maybe_field.count(enums.SPLITTER),
-                        field_name,
-                    ),
-                    default=False,
-                ),
-                yes_declaration=new_value,
-                no_declaration=declarations.get(maybe_field, SKIP),
-            )
-        return overrides
+        pass
 
     def get_revdeps(self, parameters):
         """This might alter fields it's injecting."""
-        return [param for param in parameters if param in self.overrides]
+        pass
 
     def __repr__(self):
         return '%s(%s)' % (
@@ -643,13 +510,7 @@ class PostGenerationDeclaration(BaseDeclaration):
     FACTORY_BUILDER_PHASE = enums.BuilderPhase.POST_INSTANTIATION
 
     def evaluate_post(self, instance, step, overrides):
-        context = self.unroll_context(instance, step, overrides)
-        postgen_context = PostGenerationContext(
-            value_provided=bool('' in context),
-            value=context.get(''),
-            extra={k: v for k, v in context.items() if k != ''},
-        )
-        return self.call(instance, step, postgen_context)
+        pass
 
     def call(self, instance, step, context):  # pragma: no cover
         """Call this hook; no return value is expected.
@@ -670,18 +531,7 @@ class PostGeneration(PostGenerationDeclaration):
         self.function = function
 
     def call(self, instance, step, context):
-        logger.debug(
-            "PostGeneration: Calling %s.%s(%s)",
-            self.function.__module__,
-            self.function.__name__,
-            utils.log_pprint(
-                (instance, step),
-                context._asdict(),
-            ),
-        )
-        create = step.builder.strategy == enums.CREATE_STRATEGY
-        return self.function(
-            instance, create, context.value, **context.extra)
+        pass
 
 
 class RelatedFactory(PostGenerationDeclaration):
@@ -705,32 +555,10 @@ class RelatedFactory(PostGenerationDeclaration):
 
     def get_factory(self):
         """Retrieve the wrapped factory.Factory subclass."""
-        return self.factory_wrapper.get()
+        pass
 
     def call(self, instance, step, context):
-        factory = self.get_factory()
-
-        if context.value_provided:
-            # The user passed in a custom value
-            logger.debug(
-                "RelatedFactory: Using provided %r instead of generating %s.%s.",
-                context.value,
-                factory.__module__, factory.__name__,
-            )
-            return context.value
-
-        passed_kwargs = dict(self.defaults)
-        passed_kwargs.update(context.extra)
-        if self.name:
-            passed_kwargs[self.name] = instance
-
-        logger.debug(
-            "RelatedFactory: Generating %s.%s(%s)",
-            factory.__module__,
-            factory.__name__,
-            utils.log_pprint((step,), passed_kwargs),
-        )
-        return step.recurse(factory, passed_kwargs)
+        pass
 
 
 class RelatedFactoryList(RelatedFactory):
@@ -750,11 +578,7 @@ class RelatedFactoryList(RelatedFactory):
         super().__init__(factory, factory_related_name, **defaults)
 
     def call(self, instance, step, context):
-        parent = super()
-        return [
-            parent.call(instance, step, context)
-            for i in range(self.size if isinstance(self.size, int) else self.size())
-        ]
+        pass
 
 
 class NotProvided:
@@ -786,21 +610,4 @@ class PostGenerationMethodCall(PostGenerationDeclaration):
         self.method_kwargs = kwargs
 
     def call(self, instance, step, context):
-        if not context.value_provided:
-            if self.method_arg is NotProvided:
-                args = ()
-            else:
-                args = (self.method_arg,)
-        else:
-            args = (context.value,)
-
-        kwargs = dict(self.method_kwargs)
-        kwargs.update(context.extra)
-        method = getattr(instance, self.method_name)
-        logger.debug(
-            "PostGenerationMethodCall: Calling %r.%s(%s)",
-            instance,
-            self.method_name,
-            utils.log_pprint(args, kwargs),
-        )
-        return method(*args, **kwargs)
+        pass

@@ -17,15 +17,12 @@ T = TypeVar('T')
 
 def get_factory_bases(bases):
     """Retrieve all FactoryMetaClass-derived bases from a list."""
-    return [b for b in bases if issubclass(b, BaseFactory)]
+    pass
 
 
 def resolve_attribute(name, bases, default=None):
     """Find the first definition of an attribute according to MRO order."""
-    for base in bases:
-        if hasattr(base, name):
-            return getattr(base, name)
-    return default
+    pass
 
 
 class FactoryMetaClass(type):
@@ -120,16 +117,7 @@ class OptionDefault:
         self.checker = checker
 
     def apply(self, meta, base_meta):
-        value = self.value
-        if self.inherit and base_meta is not None:
-            value = getattr(base_meta, self.name, value)
-        if meta is not None:
-            value = getattr(meta, self.name, value)
-
-        if self.checker is not None:
-            self.checker(meta, value)
-
-        return value
+        pass
 
     def __str__(self):
         return '%s(%r, %r, inherit=%r)' % (
@@ -152,10 +140,7 @@ class FactoryOptions:
 
     @property
     def declarations(self):
-        base_declarations = dict(self.base_declarations)
-        for name, param in utils.sort_ordered_objects(self.parameters.items(), getter=lambda item: item[1]):
-            base_declarations.update(param.as_declarations(name, base_declarations))
-        return base_declarations
+        pass
 
     def _build_default_options(self):
         """"Provide the default value for all allowed fields.
@@ -163,90 +148,19 @@ class FactoryOptions:
         Custom FactoryOptions classes should override this method
         to update() its return value.
         """
-
-        def is_model(meta, value):
-            if isinstance(value, FactoryMetaClass):
-                raise TypeError(
-                    "%s is already a %s"
-                    % (repr(value), Factory.__name__)
-                )
-
-        return [
-            OptionDefault('model', None, inherit=True, checker=is_model),
-            OptionDefault('abstract', False, inherit=False),
-            OptionDefault('strategy', enums.CREATE_STRATEGY, inherit=True),
-            OptionDefault('inline_args', (), inherit=True),
-            OptionDefault('exclude', (), inherit=True),
-            OptionDefault('rename', {}, inherit=True),
-        ]
+        pass
 
     def _fill_from_meta(self, meta, base_meta):
         # Exclude private/protected fields from the meta
-        if meta is None:
-            meta_attrs = {}
-        else:
-            meta_attrs = {
-                k: v
-                for (k, v) in vars(meta).items()
-                if not k.startswith('_')
-            }
-
-        for option in self._build_default_options():
-            assert not hasattr(self, option.name), "Can't override field %s." % option.name
-            value = option.apply(meta, base_meta)
-            meta_attrs.pop(option.name, None)
-            setattr(self, option.name, value)
-
-        if meta_attrs:
-            # Some attributes in the Meta aren't allowed here
-            raise TypeError(
-                "'class Meta' for %r got unknown attribute(s) %s"
-                % (self.factory, ','.join(sorted(meta_attrs.keys()))))
+        pass
 
     def contribute_to_class(self, factory, meta=None, base_meta=None, base_factory=None, params=None):
 
-        self.factory = factory
-        self.base_factory = base_factory
-
-        self._fill_from_meta(meta=meta, base_meta=base_meta)
-
-        self.model = self.get_model_class()
-        if self.model is None:
-            self.abstract = True
-
-        self.counter_reference = self._get_counter_reference()
-
-        # Scan the inheritance chain, starting from the furthest point,
-        # excluding the current class, to retrieve all declarations.
-        for parent in reversed(self.factory.__mro__[1:]):
-            if not hasattr(parent, '_meta'):
-                continue
-            self.base_declarations.update(parent._meta.base_declarations)
-            self.parameters.update(parent._meta.parameters)
-
-        for k, v in vars(self.factory).items():
-            if self._is_declaration(k, v):
-                self.base_declarations[k] = v
-
-        if params is not None:
-            for k, v in utils.sort_ordered_objects(vars(params).items(), getter=lambda item: item[1]):
-                if not k.startswith('_'):
-                    self.parameters[k] = declarations.SimpleParameter.wrap(v)
-
-        self._check_parameter_dependencies(self.parameters)
-
-        self.pre_declarations, self.post_declarations = builder.parse_declarations(self.declarations)
+        pass
 
     def _get_counter_reference(self):
         """Identify which factory should be used for a shared counter."""
-
-        if (self.model is not None
-                and self.base_factory is not None
-                and self.base_factory._meta.model is not None
-                and issubclass(self.model, self.base_factory._meta.model)):
-            return self.base_factory._meta.counter_reference
-        else:
-            return self
+        pass
 
     def _initialize_counter(self):
         """Initialize our counter pointer.
@@ -254,14 +168,7 @@ class FactoryOptions:
         If we're the top-level factory, instantiate a new counter
         Otherwise, point to the top-level factory's counter.
         """
-        if self._counter is not None:
-            return
-
-        if self.counter_reference is self:
-            self._counter = _Counter(seq=self.factory._setup_next_sequence())
-        else:
-            self.counter_reference._initialize_counter()
-            self._counter = self.counter_reference._counter
+        pass
 
     def next_sequence(self):
         """Retrieve a new sequence ID.
@@ -271,63 +178,20 @@ class FactoryOptions:
         - _setup_next_sequence, if this is the 'toplevel' factory and the
             sequence counter wasn't initialized yet; then increase it.
         """
-        self._initialize_counter()
-        return self._counter.next()
+        pass
 
     def reset_sequence(self, value=None, force=False):
-        self._initialize_counter()
-
-        if self.counter_reference is not self and not force:
-            raise ValueError(
-                "Can't reset a sequence on descendant factory %r; reset sequence on %r or use `force=True`."
-                % (self.factory, self.counter_reference.factory))
-
-        if value is None:
-            value = self.counter_reference.factory._setup_next_sequence()
-        self._counter.reset(value)
+        pass
 
     def prepare_arguments(self, attributes):
         """Convert an attributes dict to a (args, kwargs) tuple."""
-        kwargs = dict(attributes)
-        # 1. Extension points
-        kwargs = self.factory._adjust_kwargs(**kwargs)
-
-        # 2. Remove hidden objects
-        kwargs = {
-            k: v for k, v in kwargs.items()
-            if k not in self.exclude and k not in self.parameters and v is not declarations.SKIP
-        }
-
-        # 3. Rename fields
-        for old_name, new_name in self.rename.items():
-            if old_name in kwargs:
-                kwargs[new_name] = kwargs.pop(old_name)
-
-        # 4. Extract inline args
-        args = tuple(
-            kwargs.pop(arg_name)
-            for arg_name in self.inline_args
-        )
-
-        return args, kwargs
+        pass
 
     def instantiate(self, step, args, kwargs):
-        model = self.get_model_class()
-
-        if step.builder.strategy == enums.BUILD_STRATEGY:
-            return self.factory._build(model, *args, **kwargs)
-        elif step.builder.strategy == enums.CREATE_STRATEGY:
-            return self.factory._create(model, *args, **kwargs)
-        else:
-            assert step.builder.strategy == enums.STUB_STRATEGY
-            return StubObject(**kwargs)
+        pass
 
     def use_postgeneration_results(self, step, instance, results):
-        self.factory._after_postgeneration(
-            instance,
-            create=step.builder.strategy == enums.CREATE_STRATEGY,
-            results=results,
-        )
+        pass
 
     def _is_declaration(self, name, value):
         """Determines if a class attribute is a field value declaration.
@@ -337,38 +201,11 @@ class FactoryOptions:
         is private (name starts with '_') or a classmethod or staticmethod.
 
         """
-        if isinstance(value, (classmethod, staticmethod)):
-            return False
-        elif enums.get_builder_phase(value):
-            # All objects with a defined 'builder phase' are declarations.
-            return True
-        return not name.startswith("_")
+        pass
 
     def _check_parameter_dependencies(self, parameters):
         """Find out in what order parameters should be called."""
-        # Warning: parameters only provide reverse dependencies; we reverse them into standard dependencies.
-        # deep_revdeps: set of fields a field depend indirectly upon
-        deep_revdeps = collections.defaultdict(set)
-        # Actual, direct dependencies
-        deps = collections.defaultdict(set)
-
-        for name, parameter in parameters.items():
-            if isinstance(parameter, declarations.Parameter):
-                field_revdeps = parameter.get_revdeps(parameters)
-                if not field_revdeps:
-                    continue
-                deep_revdeps[name] = set.union(*(deep_revdeps[dep] for dep in field_revdeps))
-                deep_revdeps[name] |= set(field_revdeps)
-                for dep in field_revdeps:
-                    deps[dep].add(name)
-
-        # Check for cyclical dependencies
-        cyclic = [name for name, field_deps in deep_revdeps.items() if name in field_deps]
-        if cyclic:
-            raise errors.CyclicDefinitionError(
-                "Cyclic definition detected on %r; Params around %s"
-                % (self.factory, ', '.join(cyclic)))
-        return deps
+        pass
 
     def get_model_class(self):
         """Extension point for loading model classes.
@@ -376,7 +213,7 @@ class FactoryOptions:
         This can be overridden in framework-specific subclasses to hook into
         existing model repositories, for instance.
         """
-        return self.model
+        pass
 
     def __str__(self):
         return "<%s for %s>" % (self.__class__.__name__, self.factory.__name__)
@@ -400,12 +237,10 @@ class _Counter:
         self.seq = seq
 
     def next(self):
-        value = self.seq
-        self.seq += 1
-        return value
+        pass
 
     def reset(self, next_value=0):
-        self.seq = next_value
+        pass
 
 
 class BaseFactory(Generic[T]):
@@ -434,7 +269,7 @@ class BaseFactory(Generic[T]):
             force (bool): whether to force-reset parent sequence counters
                 in a factory inheritance chain.
         """
-        cls._meta.reset_sequence(value, force=force)
+        pass
 
     @classmethod
     def _setup_next_sequence(cls):
@@ -443,12 +278,12 @@ class BaseFactory(Generic[T]):
         Returns:
             int: the first available ID to use for instances of this factory.
         """
-        return 0
+        pass
 
     @classmethod
     def _adjust_kwargs(cls, **kwargs):
         """Extension point for custom kwargs adjustment."""
-        return kwargs
+        pass
 
     @classmethod
     def _generate(cls, strategy, params):
@@ -458,14 +293,7 @@ class BaseFactory(Generic[T]):
             params (dict): attributes to use for generating the object
             strategy: the strategy to use
         """
-        if cls._meta.abstract:
-            raise errors.FactoryError(
-                "Cannot generate instances of abstract factory %(f)s; "
-                "Ensure %(f)s.Meta.model is set and %(f)s.Meta.abstract "
-                "is either not set or False." % dict(f=cls.__name__))
-
-        step = builder.StepBuilder(cls._meta, params, strategy)
-        return step.build()
+        pass
 
     @classmethod
     def _after_postgeneration(cls, instance, create, results=None):
@@ -491,7 +319,7 @@ class BaseFactory(Generic[T]):
             args (tuple): arguments to use when building the class
             kwargs (dict): keyword arguments to use when building the class
         """
-        return model_class(*args, **kwargs)
+        pass
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
@@ -506,7 +334,7 @@ class BaseFactory(Generic[T]):
             args (tuple): arguments to use when creating the class
             kwargs (dict): keyword arguments to use when creating the class
         """
-        return model_class(*args, **kwargs)
+        pass
 
     @classmethod
     def build(cls, **kwargs) -> T:
@@ -514,7 +342,7 @@ class BaseFactory(Generic[T]):
 
         The instance will not be saved and persisted to any datastore.
         """
-        return cls._generate(enums.BUILD_STRATEGY, kwargs)
+        pass
 
     @classmethod
     def build_batch(cls, size: int, **kwargs) -> List[T]:
@@ -528,7 +356,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object list: the built instances
         """
-        return [cls.build(**kwargs) for _ in range(size)]
+        pass
 
     @classmethod
     def create(cls, **kwargs) -> T:
@@ -536,7 +364,7 @@ class BaseFactory(Generic[T]):
 
         The instance will be saved and persisted in the appropriate datastore.
         """
-        return cls._generate(enums.CREATE_STRATEGY, kwargs)
+        pass
 
     @classmethod
     def create_batch(cls, size: int, **kwargs) -> List[T]:
@@ -550,7 +378,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object list: the created instances
         """
-        return [cls.create(**kwargs) for _ in range(size)]
+        pass
 
     @classmethod
     def stub(cls, **kwargs):
@@ -559,7 +387,7 @@ class BaseFactory(Generic[T]):
         This will return an object whose attributes are those defined in this
         factory's declarations or in the extra kwargs.
         """
-        return cls._generate(enums.STUB_STRATEGY, kwargs)
+        pass
 
     @classmethod
     def stub_batch(cls, size, **kwargs):
@@ -571,7 +399,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object list: the stubbed instances
         """
-        return [cls.stub(**kwargs) for _ in range(size)]
+        pass
 
     @classmethod
     def generate(cls, strategy, **kwargs):
@@ -586,9 +414,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object: the generated instance
         """
-        assert strategy in (enums.STUB_STRATEGY, enums.BUILD_STRATEGY, enums.CREATE_STRATEGY)
-        action = getattr(cls, strategy)
-        return action(**kwargs)
+        pass
 
     @classmethod
     def generate_batch(cls, strategy, size, **kwargs):
@@ -604,9 +430,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object list: the generated instances
         """
-        assert strategy in (enums.STUB_STRATEGY, enums.BUILD_STRATEGY, enums.CREATE_STRATEGY)
-        batch_action = getattr(cls, '%s_batch' % strategy)
-        return batch_action(size, **kwargs)
+        pass
 
     @classmethod
     def simple_generate(cls, create, **kwargs):
@@ -620,8 +444,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object: the generated instance
         """
-        strategy = enums.CREATE_STRATEGY if create else enums.BUILD_STRATEGY
-        return cls.generate(strategy, **kwargs)
+        pass
 
     @classmethod
     def simple_generate_batch(cls, create, size, **kwargs):
@@ -636,8 +459,7 @@ class BaseFactory(Generic[T]):
         Returns:
             object list: the generated instances
         """
-        strategy = enums.CREATE_STRATEGY if create else enums.BUILD_STRATEGY
-        return cls.generate_batch(strategy, size, **kwargs)
+        pass
 
 
 class Factory(BaseFactory[T], metaclass=FactoryMetaClass):
@@ -674,7 +496,7 @@ class StubFactory(Factory):
 
     @classmethod
     def build(cls, **kwargs):
-        return cls.stub(**kwargs)
+        pass
 
     @classmethod
     def create(cls, **kwargs):
@@ -688,14 +510,11 @@ class BaseDictFactory(Factory):
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
-        if args:
-            raise ValueError(
-                "DictFactory %r does not support Meta.inline_args." % cls)
-        return model_class(**kwargs)
+        pass
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        return cls._build(model_class, *args, **kwargs)
+        pass
 
 
 class DictFactory(BaseDictFactory):
@@ -710,18 +529,11 @@ class BaseListFactory(Factory):
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
-        if args:
-            raise ValueError(
-                "ListFactory %r does not support Meta.inline_args." % cls)
-
-        # kwargs are constructed from a list, their insertion order matches the list
-        # order, no additional sorting is required.
-        values = kwargs.values()
-        return model_class(values)
+        pass
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        return cls._build(model_class, *args, **kwargs)
+        pass
 
 
 class ListFactory(BaseListFactory):
@@ -734,13 +546,4 @@ def use_strategy(new_strategy):
 
     This is an alternative to setting default_strategy in the class definition.
     """
-    warnings.warn(
-        "use_strategy() is deprecated and will be removed in the future.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
-    def wrapped_class(klass):
-        klass._meta.strategy = new_strategy
-        return klass
-    return wrapped_class
+    pass

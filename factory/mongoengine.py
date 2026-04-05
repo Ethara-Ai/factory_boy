@@ -15,11 +15,8 @@ class MongoEngineFactory(base.Factory):
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
-        return model_class(*args, **kwargs)
+        pass
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
-        instance = model_class(*args, **kwargs)
-        if instance._is_document:
-            instance.save()
-        return instance
+        pass

@@ -28,7 +28,7 @@ class BaseFuzzyAttribute(declarations.BaseDeclaration):
         raise NotImplementedError()
 
     def evaluate(self, instance, step, extra):
-        return self.fuzz()
+        pass
 
 
 class FuzzyAttribute(BaseFuzzyAttribute):
@@ -44,7 +44,7 @@ class FuzzyAttribute(BaseFuzzyAttribute):
         self.fuzzer = fuzzer
 
     def fuzz(self):
-        return self.fuzzer()
+        pass
 
 
 class FuzzyText(BaseFuzzyAttribute):
@@ -72,8 +72,7 @@ class FuzzyText(BaseFuzzyAttribute):
         self.chars = tuple(chars)  # Unroll iterators
 
     def fuzz(self):
-        chars = [random.randgen.choice(self.chars) for _i in range(self.length)]
-        return self.prefix + ''.join(chars) + self.suffix
+        pass
 
 
 class FuzzyChoice(BaseFuzzyAttribute):
@@ -92,12 +91,7 @@ class FuzzyChoice(BaseFuzzyAttribute):
         super().__init__()
 
     def fuzz(self):
-        if self.choices is None:
-            self.choices = list(self.choices_generator)
-        value = random.randgen.choice(self.choices)
-        if self.getter is None:
-            return value
-        return self.getter(value)
+        pass
 
 
 class FuzzyInteger(BaseFuzzyAttribute):
@@ -115,7 +109,7 @@ class FuzzyInteger(BaseFuzzyAttribute):
         super().__init__()
 
     def fuzz(self):
-        return random.randgen.randrange(self.low, self.high + 1, self.step)
+        pass
 
 
 class FuzzyDecimal(BaseFuzzyAttribute):
@@ -133,8 +127,7 @@ class FuzzyDecimal(BaseFuzzyAttribute):
         super().__init__()
 
     def fuzz(self):
-        base = decimal.Decimal(str(random.randgen.uniform(self.low, self.high)))
-        return base.quantize(decimal.Decimal(10) ** -self.precision)
+        pass
 
 
 class FuzzyFloat(BaseFuzzyAttribute):
@@ -152,8 +145,7 @@ class FuzzyFloat(BaseFuzzyAttribute):
         super().__init__()
 
     def fuzz(self):
-        base = random.randgen.uniform(self.low, self.high)
-        return float(format(base, '.%dg' % self.precision))
+        pass
 
 
 class FuzzyDate(BaseFuzzyAttribute):
@@ -176,7 +168,7 @@ class FuzzyDate(BaseFuzzyAttribute):
         self.end_date = end_date.toordinal()
 
     def fuzz(self):
-        return datetime.date.fromordinal(random.randgen.randint(self.start_date, self.end_date))
+        pass
 
 
 class BaseFuzzyDateTime(BaseFuzzyAttribute):
@@ -186,10 +178,7 @@ class BaseFuzzyDateTime(BaseFuzzyAttribute):
     """
 
     def _check_bounds(self, start_dt, end_dt):
-        if start_dt > end_dt:
-            raise ValueError(
-                """%s boundaries should have start <= end, got %r > %r""" % (
-                    self.__class__.__name__, start_dt, end_dt))
+        pass
 
     def _now(self):
         raise NotImplementedError()
@@ -219,28 +208,7 @@ class BaseFuzzyDateTime(BaseFuzzyAttribute):
         self.force_microsecond = force_microsecond
 
     def fuzz(self):
-        delta = self.end_dt - self.start_dt
-        microseconds = delta.microseconds + 1000000 * (delta.seconds + (delta.days * 86400))
-
-        offset = random.randgen.randint(0, microseconds)
-        result = self.start_dt + datetime.timedelta(microseconds=offset)
-
-        if self.force_year is not None:
-            result = result.replace(year=self.force_year)
-        if self.force_month is not None:
-            result = result.replace(month=self.force_month)
-        if self.force_day is not None:
-            result = result.replace(day=self.force_day)
-        if self.force_hour is not None:
-            result = result.replace(hour=self.force_hour)
-        if self.force_minute is not None:
-            result = result.replace(minute=self.force_minute)
-        if self.force_second is not None:
-            result = result.replace(second=self.force_second)
-        if self.force_microsecond is not None:
-            result = result.replace(microsecond=self.force_microsecond)
-
-        return result
+        pass
 
 
 class FuzzyNaiveDateTime(BaseFuzzyDateTime):
@@ -250,18 +218,10 @@ class FuzzyNaiveDateTime(BaseFuzzyDateTime):
     """
 
     def _now(self):
-        return datetime.datetime.now()
+        pass
 
     def _check_bounds(self, start_dt, end_dt):
-        if start_dt.tzinfo is not None:
-            raise ValueError(
-                "FuzzyNaiveDateTime only handles naive datetimes, got start=%r"
-                % start_dt)
-        if end_dt.tzinfo is not None:
-            raise ValueError(
-                "FuzzyNaiveDateTime only handles naive datetimes, got end=%r"
-                % end_dt)
-        super()._check_bounds(start_dt, end_dt)
+        pass
 
 
 class FuzzyDateTime(BaseFuzzyDateTime):
@@ -272,15 +232,7 @@ class FuzzyDateTime(BaseFuzzyDateTime):
     """
 
     def _now(self):
-        return datetime.datetime.now(tz=datetime.timezone.utc)
+        pass
 
     def _check_bounds(self, start_dt, end_dt):
-        if start_dt.tzinfo is None:
-            raise ValueError(
-                "FuzzyDateTime requires timezone-aware datetimes, got start=%r"
-                % start_dt)
-        if end_dt.tzinfo is None:
-            raise ValueError(
-                "FuzzyDateTime requires timezone-aware datetimes, got end=%r"
-                % end_dt)
-        super()._check_bounds(start_dt, end_dt)
+        pass

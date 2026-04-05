@@ -44,9 +44,7 @@ class Faker(declarations.BaseDeclaration):
             **kwargs)
 
     def evaluate(self, instance, step, extra):
-        locale = extra.pop('locale')
-        subfaker = self._get_faker(locale)
-        return subfaker.format(self.provider, **extra)
+        pass
 
     _FAKER_REGISTRY: Dict[str, faker.Faker] = {}
     _DEFAULT_LOCALE = faker.config.DEFAULT_LOCALE
@@ -54,25 +52,13 @@ class Faker(declarations.BaseDeclaration):
     @classmethod
     @contextlib.contextmanager
     def override_default_locale(cls, locale):
-        old_locale = cls._DEFAULT_LOCALE
-        cls._DEFAULT_LOCALE = locale
-        try:
-            yield
-        finally:
-            cls._DEFAULT_LOCALE = old_locale
+        pass
 
     @classmethod
     def _get_faker(cls, locale=None):
-        if locale is None:
-            locale = cls._DEFAULT_LOCALE
-
-        if locale not in cls._FAKER_REGISTRY:
-            subfaker = faker.Faker(locale=locale)
-            cls._FAKER_REGISTRY[locale] = subfaker
-
-        return cls._FAKER_REGISTRY[locale]
+        pass
 
     @classmethod
     def add_provider(cls, provider, locale=None):
         """Add a new Faker provider for the specified locale"""
-        cls._get_faker(locale).add_provider(provider)
+        pass

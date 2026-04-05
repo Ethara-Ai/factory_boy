@@ -21,4 +21,4 @@ class BuilderPhase:
 
 
 def get_builder_phase(obj):
-    return getattr(obj, 'FACTORY_BUILDER_PHASE', None)
+    pass
